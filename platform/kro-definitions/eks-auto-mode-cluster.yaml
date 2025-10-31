@@ -1,0 +1,480 @@
+# KRO ResourceGraphDefinition for EKS Auto Mode Cluster
+# This creates a complete EKS Auto Mode cluster with VPC (optional)
+---
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: eksautocluster.kro.run
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: ClusterRequest
+    group: platform.marina.com
+    spec:
+      # Required fields
+      kubernetesVersion: string
+      region: string
+      
+      # Optional fields with defaults
+      accountId: string | default=""
+      managementAccountId: string | default=""
+      
+      # VPC configuration
+      vpc:
+        create: boolean | default=true
+        vpcCidr: string | default="10.0.0.0/16"
+        publicSubnet1Cidr: string | default="10.0.1.0/24"
+        publicSubnet2Cidr: string | default="10.0.2.0/24"
+        privateSubnet1Cidr: string | default="10.0.11.0/24"
+        privateSubnet2Cidr: string | default="10.0.12.0/24"
+        # For existing VPC
+        vpcId: string | default=""
+        publicSubnet1Id: string | default=""
+        publicSubnet2Id: string | default=""
+        privateSubnet1Id: string | default=""
+        privateSubnet2Id: string | default=""
+      
+      # Compute config (Auto Mode)
+      computeConfig:
+        autoMode: boolean | default=true
+    
+    status:
+      clusterARN: ${ekscluster.status.ackResourceMetadata.arn}
+      certificateAuthority: ${ekscluster.status.certificateAuthority.data}
+      endpoint: ${ekscluster.status.endpoint}
+      clusterStatus: ${ekscluster.status.status}
+      vpcId: ${vpc.status.vpcID}
+
+  resources:
+    ###########################################################
+    # VPC Resources (conditional - only if vpc.create = true)
+    ###########################################################
+    - id: vpc
+      includeWhen:
+        - ${schema.spec.vpc.create}
+      readyWhen:
+        - ${vpc.status.vpcID != ""}
+      template:
+        apiVersion: ec2.services.k8s.aws/v1alpha1
+        kind: VPC
+        metadata:
+          name: ${schema.metadata.name}-vpc
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          cidrBlocks:
+            - ${schema.spec.vpc.vpcCidr}
+          enableDNSSupport: true
+          enableDNSHostnames: true
+          tags:
+            - key: Name
+              value: ${schema.metadata.name}-vpc
+            - key: kubernetes.io/cluster/${schema.metadata.name}
+              value: shared
+
+    - id: igw
+      includeWhen:
+        - ${schema.spec.vpc.create}
+      template:
+        apiVersion: ec2.services.k8s.aws/v1alpha1
+        kind: InternetGateway
+        metadata:
+          name: ${schema.metadata.name}-igw
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          vpcRef:
+            from:
+              name: ${schema.metadata.name}-vpc
+          tags:
+            - key: Name
+              value: ${schema.metadata.name}-igw
+
+    - id: publicSubnet1
+      includeWhen:
+        - ${schema.spec.vpc.create}
+      template:
+        apiVersion: ec2.services.k8s.aws/v1alpha1
+        kind: Subnet
+        metadata:
+          name: ${schema.metadata.name}-public-1
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          availabilityZone: ${schema.spec.region}a
+          cidrBlock: ${schema.spec.vpc.publicSubnet1Cidr}
+          mapPublicIPOnLaunch: true
+          vpcRef:
+            from:
+              name: ${schema.metadata.name}-vpc
+          tags:
+            - key: Name
+              value: ${schema.metadata.name}-public-1
+            - key: kubernetes.io/role/elb
+              value: "1"
+
+    - id: publicSubnet2
+      includeWhen:
+        - ${schema.spec.vpc.create}
+      template:
+        apiVersion: ec2.services.k8s.aws/v1alpha1
+        kind: Subnet
+        metadata:
+          name: ${schema.metadata.name}-public-2
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          availabilityZone: ${schema.spec.region}b
+          cidrBlock: ${schema.spec.vpc.publicSubnet2Cidr}
+          mapPublicIPOnLaunch: true
+          vpcRef:
+            from:
+              name: ${schema.metadata.name}-vpc
+          tags:
+            - key: Name
+              value: ${schema.metadata.name}-public-2
+            - key: kubernetes.io/role/elb
+              value: "1"
+
+    - id: privateSubnet1
+      includeWhen:
+        - ${schema.spec.vpc.create}
+      template:
+        apiVersion: ec2.services.k8s.aws/v1alpha1
+        kind: Subnet
+        metadata:
+          name: ${schema.metadata.name}-private-1
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          availabilityZone: ${schema.spec.region}a
+          cidrBlock: ${schema.spec.vpc.privateSubnet1Cidr}
+          vpcRef:
+            from:
+              name: ${schema.metadata.name}-vpc
+          tags:
+            - key: Name
+              value: ${schema.metadata.name}-private-1
+            - key: kubernetes.io/role/internal-elb
+              value: "1"
+
+    - id: privateSubnet2
+      includeWhen:
+        - ${schema.spec.vpc.create}
+      template:
+        apiVersion: ec2.services.k8s.aws/v1alpha1
+        kind: Subnet
+        metadata:
+          name: ${schema.metadata.name}-private-2
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          availabilityZone: ${schema.spec.region}b
+          cidrBlock: ${schema.spec.vpc.privateSubnet2Cidr}
+          vpcRef:
+            from:
+              name: ${schema.metadata.name}-vpc
+          tags:
+            - key: Name
+              value: ${schema.metadata.name}-private-2
+            - key: kubernetes.io/role/internal-elb
+              value: "1"
+
+    - id: natEIP
+      includeWhen:
+        - ${schema.spec.vpc.create}
+      template:
+        apiVersion: ec2.services.k8s.aws/v1alpha1
+        kind: ElasticIPAddress
+        metadata:
+          name: ${schema.metadata.name}-nat-eip
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          tags:
+            - key: Name
+              value: ${schema.metadata.name}-nat-eip
+
+    - id: natGateway
+      includeWhen:
+        - ${schema.spec.vpc.create}
+      template:
+        apiVersion: ec2.services.k8s.aws/v1alpha1
+        kind: NATGateway
+        metadata:
+          name: ${schema.metadata.name}-nat
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          allocationRef:
+            from:
+              name: ${schema.metadata.name}-nat-eip
+          subnetRef:
+            from:
+              name: ${schema.metadata.name}-public-1
+          tags:
+            - key: Name
+              value: ${schema.metadata.name}-nat
+
+    - id: publicRouteTable
+      includeWhen:
+        - ${schema.spec.vpc.create}
+      template:
+        apiVersion: ec2.services.k8s.aws/v1alpha1
+        kind: RouteTable
+        metadata:
+          name: ${schema.metadata.name}-public-rt
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          vpcRef:
+            from:
+              name: ${schema.metadata.name}-vpc
+          routes:
+            - destinationCIDRBlock: 0.0.0.0/0
+              gatewayRef:
+                from:
+                  name: ${schema.metadata.name}-igw
+          tags:
+            - key: Name
+              value: ${schema.metadata.name}-public-rt
+
+    - id: privateRouteTable
+      includeWhen:
+        - ${schema.spec.vpc.create}
+      template:
+        apiVersion: ec2.services.k8s.aws/v1alpha1
+        kind: RouteTable
+        metadata:
+          name: ${schema.metadata.name}-private-rt
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          vpcRef:
+            from:
+              name: ${schema.metadata.name}-vpc
+          routes:
+            - destinationCIDRBlock: 0.0.0.0/0
+              natGatewayRef:
+                from:
+                  name: ${schema.metadata.name}-nat
+          tags:
+            - key: Name
+              value: ${schema.metadata.name}-private-rt
+
+    ###########################################################
+    # IAM Roles for EKS Cluster
+    ###########################################################
+    - id: clusterRole
+      template:
+        apiVersion: iam.services.k8s.aws/v1alpha1
+        kind: Role
+        metadata:
+          name: ${schema.metadata.name}-cluster-role
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          name: ${schema.metadata.name}-cluster-role
+          description: IAM role for EKS cluster ${schema.metadata.name}
+          policies:
+            - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+            - arn:aws:iam::aws:policy/AmazonEKSComputePolicy
+            - arn:aws:iam::aws:policy/AmazonEKSBlockStoragePolicy
+            - arn:aws:iam::aws:policy/AmazonEKSLoadBalancingPolicy
+            - arn:aws:iam::aws:policy/AmazonEKSNetworkingPolicy
+          assumeRolePolicyDocument: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "eks.amazonaws.com"
+                  },
+                  "Action": [
+                    "sts:AssumeRole",
+                    "sts:TagSession"
+                  ]
+                }
+              ]
+            }
+
+    - id: nodeRole
+      template:
+        apiVersion: iam.services.k8s.aws/v1alpha1
+        kind: Role
+        metadata:
+          name: ${schema.metadata.name}-node-role
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          name: ${schema.metadata.name}-node-role
+          description: IAM role for EKS Auto Mode nodes ${schema.metadata.name}
+          policies:
+            - arn:aws:iam::aws:policy/AmazonEKSWorkerNodeMinimalPolicy
+            - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly
+            - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+          assumeRolePolicyDocument: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "ec2.amazonaws.com"
+                  },
+                  "Action": [
+                    "sts:AssumeRole",
+                    "sts:TagSession"
+                  ]
+                }
+              ]
+            }
+
+    ###########################################################
+    # EKS Cluster (with new VPC)
+    ###########################################################
+    - id: ekscluster
+      includeWhen:
+        - ${schema.spec.vpc.create}
+      template:
+        apiVersion: eks.services.k8s.aws/v1alpha1
+        kind: Cluster
+        metadata:
+          name: ${schema.metadata.name}
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          name: ${schema.metadata.name}
+          version: ${schema.spec.kubernetesVersion}
+          roleRef:
+            from:
+              name: ${schema.metadata.name}-cluster-role
+          resourcesVPCConfig:
+            endpointPrivateAccess: true
+            endpointPublicAccess: true
+            subnetRefs:
+              - from:
+                  name: ${schema.metadata.name}-public-1
+              - from:
+                  name: ${schema.metadata.name}-public-2
+              - from:
+                  name: ${schema.metadata.name}-private-1
+              - from:
+                  name: ${schema.metadata.name}-private-2
+          # EKS Auto Mode configuration
+          computeConfig:
+            enabled: true
+            nodePools:
+              - general-purpose
+              - system
+
+    ###########################################################
+    # EKS Cluster (with existing VPC)
+    ###########################################################
+    - id: eksclusterExisting
+      includeWhen:
+        - ${!schema.spec.vpc.create}
+      template:
+        apiVersion: eks.services.k8s.aws/v1alpha1
+        kind: Cluster
+        metadata:
+          name: ${schema.metadata.name}
+          namespace: ${schema.metadata.namespace}
+          annotations:
+            services.k8s.aws/region: ${schema.spec.region}
+        spec:
+          name: ${schema.metadata.name}
+          version: ${schema.spec.kubernetesVersion}
+          roleRef:
+            from:
+              name: ${schema.metadata.name}-cluster-role
+          resourcesVPCConfig:
+            endpointPrivateAccess: true
+            endpointPublicAccess: true
+            subnetIDs:
+              - ${schema.spec.vpc.publicSubnet1Id}
+              - ${schema.spec.vpc.publicSubnet2Id}
+              - ${schema.spec.vpc.privateSubnet1Id}
+              - ${schema.spec.vpc.privateSubnet2Id}
+          # EKS Auto Mode configuration
+          computeConfig:
+            enabled: true
+            nodePools:
+              - general-purpose
+              - system
+
+    ###########################################################
+    # ArgoCD Secret (registers cluster with ArgoCD)
+    ###########################################################
+    - id: argoCDSecret
+      includeWhen:
+        - ${schema.spec.vpc.create}
+      template:
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: ${schema.metadata.name}
+          namespace: argocd
+          labels:
+            argocd.argoproj.io/secret-type: cluster
+            fleet_member: spoke
+        type: Opaque
+        stringData:
+          name: ${schema.metadata.name}
+          server: ${ekscluster.status.endpoint}
+          config: |
+            {
+              "awsAuthConfig": {
+                "clusterName": "${schema.metadata.name}",
+                "roleARN": "arn:aws:iam::${schema.spec.accountId}:role/${schema.metadata.name}-argocd-role"
+              },
+              "tlsClientConfig": {
+                "insecure": false,
+                "caData": "${ekscluster.status.certificateAuthority.data}"
+              }
+            }
+
+    - id: argoCDSecretExisting
+      includeWhen:
+        - ${!schema.spec.vpc.create}
+      template:
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: ${schema.metadata.name}
+          namespace: argocd
+          labels:
+            argocd.argoproj.io/secret-type: cluster
+            fleet_member: spoke
+        type: Opaque
+        stringData:
+          name: ${schema.metadata.name}
+          server: ${eksclusterExisting.status.endpoint}
+          config: |
+            {
+              "awsAuthConfig": {
+                "clusterName": "${schema.metadata.name}",
+                "roleARN": "arn:aws:iam::${schema.spec.accountId}:role/${schema.metadata.name}-argocd-role"
+              },
+              "tlsClientConfig": {
+                "insecure": false,
+                "caData": "${eksclusterExisting.status.certificateAuthority.data}"
+              }
+            }

@@ -1,0 +1,55 @@
+# ArgoCD ApplicationSet that watches tenant application requests
+# This automatically deploys apps when teams commit YAML files to their applications folder
+
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: tenant-applications
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=zero
+  
+  # Generator: Watch Git repository for tenant folders
+  generators:
+    - git:
+        repoURL: git@github.com:badrish-s/marina-platform-demo.git
+        revision: main
+        directories:
+          - path: "tenants/*"
+          - path: "tenants/_templates"
+            exclude: true
+  
+  # Template: Create Application for each tenant folder
+  template:
+    metadata:
+      # Application name: alpha-apps
+      name: '{{.path.basename | replace "team-" ""}}-apps'
+      labels:
+        tenant: '{{.path.basename}}'
+        app-type: application
+        managed-by: marina-platform
+    
+    spec:
+      # Use platform project
+      project: platform
+      
+      # Source: Deploy everything in tenant's applications folder
+      source:
+        repoURL: git@github.com:badrish-s/marina-platform-demo.git
+        targetRevision: main
+        path: '{{.path.path}}/applications'
+      
+      # Destination: Management cluster (all apps run here with namespace isolation)
+      destination:
+        name: arn:aws:eks:us-west-2:667076712805:cluster/marina-integ-test-eks-cluster-1
+        namespace: '{{.path.basename}}'
+      
+      # Sync policy
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

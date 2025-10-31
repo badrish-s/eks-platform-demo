@@ -1,0 +1,36 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars.backup
+.terraform/
+.terraform.lock.hcl
+terraform.tfplan
+tempfile.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+*.pem
+*.key
+secrets/
+.env
+
+# Temporary files
+*.tmp
+*.log
+
+# Tenant folders - ignore specific files and folders
+tenants/team-alpha/applications/web-app.yaml
+tenants/team-beta/
+
+# But keep the templates
+!tenants/_templates/

@@ -1,0 +1,25 @@
+# Application Request Template
+# Copy this file to: tenants/YOUR-TEAM/applications/APP-NAME.yaml
+# Example: tenants/team-alpha/applications/web-app.yaml
+
+apiVersion: v1alpha1
+kind: WebAppWithS3
+metadata:
+  name: web-app
+spec:
+  tenantName: TENANT-NAME      # e.g., team-alpha
+  bucketSuffix: "YYYYMMDD"     # e.g., 20241028 or your AWS account ID
+  clusterName: CLUSTER-NAME    # e.g., marina-integ-test-eks-cluster
+  replicas: 2
+
+---
+# Example: team-alpha web app
+# apiVersion: v1alpha1
+# kind: WebAppWithS3
+# metadata:
+#   name: web-app
+# spec:
+#   tenantName: team-alpha
+#   bucketSuffix: "20241028"
+#   clusterName: marina-integ-test-eks-cluster
+#   replicas: 2

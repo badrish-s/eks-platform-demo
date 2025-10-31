@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: test-applicationset
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - name: team-alpha
+            path: tenants/team-alpha/applications/
+  
+  template:
+    metadata:
+      name: 'test-{{name}}-web-app'
+      labels:
+        tenant: '{{name}}'
+        app-type: application
+        managed-by: test
+    
+    spec:
+      project: platform
+      
+      source:
+        repoURL: git@github.com:badrish-s/marina-platform-demo.git
+        targetRevision: HEAD
+        path: '{{path}}'
+      
+      destination:
+        name: arn:aws:eks:us-west-2:667076712805:cluster/marina-integ-test-eks-cluster-1
+        namespace: '{{name}}'
+      
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

@@ -1,0 +1,237 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: webappwiths3
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: WebAppWithS3
+    spec:
+      tenantName: string
+      bucketSuffix: string
+      clusterName: string
+      replicas: integer | default=2
+      
+  resources:
+    # S3 Bucket for static content
+    # Note: Bucket name must be globally unique across all AWS accounts
+    # Using tenant name + user-provided suffix ensures uniqueness
+    # Format: team-alpha-landing-20241028 or team-alpha-landing-328208336887
+    - id: bucket
+      template:
+        apiVersion: s3.services.k8s.aws/v1alpha1
+        kind: Bucket
+        metadata:
+          name: ${schema.spec.tenantName}-landing-page
+        spec:
+          name: ${schema.spec.tenantName}-landing-${schema.spec.bucketSuffix}
+    
+
+    # Job to upload index.html to S3
+    - id: uploader
+      template:
+        apiVersion: batch/v1
+        kind: Job
+        metadata:
+          name: ${schema.spec.tenantName}-s3-upload
+        spec:
+          template:
+            spec:
+              serviceAccountName: ${schema.spec.tenantName}-s3-access
+              restartPolicy: OnFailure
+              containers:
+                - name: uploader
+                  image: amazon/aws-cli:latest
+                  command:
+                    - /bin/sh
+                    - -c
+                    - |
+                      cat > /tmp/index.html << 'EOF'
+                      <!DOCTYPE html>
+                      <html>
+                      <head>
+                        <title>${schema.spec.tenantName} Landing Page</title>
+                        <style>
+                          body {
+                            font-family: Arial, sans-serif;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            height: 100vh;
+                            margin: 0;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                          }
+                          .container {
+                            text-align: center;
+                            padding: 40px;
+                            background: rgba(255, 255, 255, 0.1);
+                            border-radius: 10px;
+                            backdrop-filter: blur(10px);
+                          }
+                          h1 { font-size: 3em; margin: 0; }
+                          p { font-size: 1.5em; margin-top: 20px; }
+                        </style>
+                      </head>
+                      <body>
+                        <div class="container">
+                          <h1>Welcome!</h1>
+                          <p>This is ${schema.spec.tenantName} landing page</p>
+                          <p style="font-size: 1em; margin-top: 40px;">Powered by KRO + ACK + ArgoCD</p>
+                          <p style="font-size: 0.8em; margin-top: 20px;">Served from S3</p>
+                        </div>
+                      </body>
+                      </html>
+                      EOF
+                      aws s3 cp /tmp/index.html s3://${bucket.spec.name}/index.html --content-type "text/html"
+                      echo "Successfully uploaded to S3"
+    
+    # ServiceAccount for S3 access
+    - id: serviceaccount
+      template:
+        apiVersion: v1
+        kind: ServiceAccount
+        metadata:
+          name: ${schema.spec.tenantName}-s3-access
+    
+    # IAM Role for S3 access (via ACK)
+    - id: iamrole
+      template:
+        apiVersion: iam.services.k8s.aws/v1alpha1
+        kind: Role
+        metadata:
+          name: ${schema.spec.tenantName}-s3-role
+        spec:
+          name: ${schema.spec.tenantName}-s3-role
+          assumeRolePolicyDocument: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Principal": {
+                  "Service": "pods.eks.amazonaws.com"
+                },
+                "Action": [
+                  "sts:AssumeRole",
+                  "sts:TagSession"
+                ]
+              }]
+            }
+          policies:
+            - |
+              {
+                "Version": "2012-10-17",
+                "Statement": [{
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:PutObject",
+                    "s3:GetObject"
+                  ],
+                  "Resource": "arn:aws:s3:::${bucket.spec.name}/*"
+                }]
+              }
+    
+    # Pod Identity Association
+    - id: podidentity
+      template:
+        apiVersion: eks.services.k8s.aws/v1alpha1
+        kind: PodIdentityAssociation
+        metadata:
+          name: ${schema.spec.tenantName}-pod-identity
+        spec:
+          clusterName: ${schema.spec.clusterName}
+          namespace: ${schema.spec.tenantName}
+          serviceAccount: ${schema.spec.tenantName}-s3-access
+          roleARN: ${iamrole.status.ackResourceMetadata.arn}
+    
+    # Deployment - nginx proxying to S3
+    - id: deployment
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ${schema.spec.tenantName}-web
+        spec:
+          replicas: ${schema.spec.replicas}
+          selector:
+            matchLabels:
+              app: ${schema.spec.tenantName}-web
+          template:
+            metadata:
+              labels:
+                app: ${schema.spec.tenantName}-web
+            spec:
+              containers:
+                - name: nginx
+                  image: nginx:alpine
+                  ports:
+                    - containerPort: 80
+                  volumeMounts:
+                    - name: config
+                      mountPath: /etc/nginx/conf.d
+              volumes:
+                - name: config
+                  configMap:
+                    name: ${schema.spec.tenantName}-nginx-config
+    
+    # Nginx config to proxy to S3
+    - id: nginxconfig
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.spec.tenantName}-nginx-config
+        data:
+          default.conf: |
+            server {
+              listen 80;
+              location / {
+                proxy_pass https://${bucket.spec.name}.s3.amazonaws.com/;
+                proxy_set_header Host ${bucket.spec.name}.s3.amazonaws.com;
+                proxy_hide_header x-amz-id-2;
+                proxy_hide_header x-amz-request-id;
+                proxy_hide_header x-amz-meta-server-side-encryption;
+                proxy_hide_header x-amz-server-side-encryption;
+                proxy_hide_header Set-Cookie;
+                proxy_ignore_headers Set-Cookie;
+              }
+            }
+    
+    # Service
+    - id: service
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${schema.spec.tenantName}-web
+        spec:
+          type: NodePort
+          selector:
+            app: ${schema.spec.tenantName}-web
+          ports:
+            - port: 80
+              targetPort: 80
+    
+    # Ingress with ALB
+    - id: ingress
+      template:
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+          name: ${schema.spec.tenantName}-web
+          annotations:
+            alb.ingress.kubernetes.io/scheme: internet-facing
+            alb.ingress.kubernetes.io/target-type: ip
+            alb.ingress.kubernetes.io/healthcheck-path: /
+        spec:
+          ingressClassName: alb
+          rules:
+            - http:
+                paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                      service:
+                        name: ${schema.spec.tenantName}-web
+                        port:
+                          number: 80
