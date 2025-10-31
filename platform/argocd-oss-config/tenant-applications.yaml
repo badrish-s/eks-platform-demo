@@ -14,7 +14,7 @@ spec:
   # Generator: Watch Git repository for tenant folders
   generators:
     - git:
-        repoURL: git@github.com:badrish-s/eks-platform-demo.git
+        repoURL: https://github.com/badrish-s/eks-platform-demo.git
         revision: main
         directories:
           - path: "tenants/*"
@@ -37,13 +37,13 @@ spec:
       
       # Source: Deploy everything in tenant's applications folder
       source:
-        repoURL: git@github.com:badrish-s/eks-platform-demo.git
+        repoURL: https://github.com/badrish-s/eks-platform-demo.git
         targetRevision: main
         path: '{{.path.path}}/applications'
       
       # Destination: Management cluster (all apps run here with namespace isolation)
       destination:
-        name: arn:aws:eks:us-west-2:667076712805:cluster/eks-integ-test-eks-cluster-1
+        name: badrish.shanbhag@oss-argocd-demo.us-west-2.eksctl.io
         namespace: '{{.path.basename}}'
       
       # Sync policy
