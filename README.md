@@ -1,4 +1,4 @@
-# Marina Platform Demo
+# EKS Platform Demo
 
 A self-service platform for creating EKS Auto Mode clusters using GitOps principles.
 
@@ -112,7 +112,7 @@ Everything is GitOps-based - commit YAML files, and the platform handles provisi
 ## Repository Structure
 
 ```
-marina-platform-demo/
+eks-platform-demo/
 ├── platform/                           # Platform team manages
 │   ├── argocd-config/
 │   │   └── tenant-applications.yaml   # ✅ Watches app requests
@@ -177,7 +177,7 @@ marina-platform-demo/
 
 - **Slack**: #platform-engineering
 - **Email**: platform-team@company.com
-- **Issues**: https://github.com/badrish-s/marina-platform-demo/issues
+- **Issues**: https://github.com/badrish-s/eks-platform-demo/issues
 
 ## License
 

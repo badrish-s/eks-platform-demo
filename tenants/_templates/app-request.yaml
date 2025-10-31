@@ -9,7 +9,7 @@ metadata:
 spec:
   tenantName: TENANT-NAME      # e.g., team-alpha
   bucketSuffix: "YYYYMMDD"     # e.g., 20241028 or your AWS account ID
-  clusterName: CLUSTER-NAME    # e.g., marina-integ-test-eks-cluster
+  clusterName: CLUSTER-NAME    # e.g., eks-integ-test-eks-cluster
   replicas: 2
 
 ---
@@ -21,5 +21,5 @@ spec:
 # spec:
 #   tenantName: team-alpha
 #   bucketSuffix: "20241028"
-#   clusterName: marina-integ-test-eks-cluster
+#   clusterName: eks-integ-test-eks-cluster
 #   replicas: 2

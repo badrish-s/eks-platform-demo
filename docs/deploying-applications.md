@@ -37,7 +37,7 @@ metadata:
 spec:
   tenantName: team-alpha
   bucketSuffix: "20241028"  # Use date, account ID, or any unique identifier
-  clusterName: marina-integ-test-eks-cluster  # Your EKS cluster name
+  clusterName: eks-integ-test-eks-cluster  # Your EKS cluster name
   replicas: 2
 ```
 
@@ -261,4 +261,4 @@ The page is styled with a gradient background and centered content.
 
 - **Slack**: #platform-engineering
 - **Email**: platform-team@company.com
-- **Issues**: https://github.com/badrish-s/marina-platform-demo/issues
+- **Issues**: https://github.com/badrish-s/eks-platform-demo/issues

@@ -1,10 +1,10 @@
 # Tenant Onboarding Guide
 
-Welcome to the Marina Platform! This guide will help you get started with creating your first EKS Auto Mode cluster.
+Welcome to the EKS Platform! This guide will help you get started with creating your first EKS Auto Mode cluster.
 
 ## Prerequisites
 
-- GitHub account with access to `marina-platform-demo` repository
+- GitHub account with access to `eks-platform-demo` repository
 - AWS account ID for your team
 - Email addresses for team members
 
@@ -33,8 +33,8 @@ tenants/YOUR-TEAM/
 ## Step 2: Clone Repository
 
 ```bash
-git clone https://github.com/badrish-s/marina-platform-demo.git
-cd marina-platform-demo
+git clone https://github.com/badrish-s/eks-platform-demo.git
+cd eks-platform-demo
 ```
 
 ## Step 3: Create Your First Cluster
@@ -50,14 +50,14 @@ cp tenants/_templates/cluster-request.yaml tenants/YOUR-TEAM/clusters/dev.yaml
 In this simplified setup, all applications run in the management cluster with namespace isolation. You don't need to create separate clusters.
 
 ```yaml
-apiVersion: platform.marina.com/v1
+apiVersion: platform.eks.com/v1
 kind: ClusterRequest
 metadata:
   name: YOUR-TEAM-dev
   labels:
     tenant: YOUR-TEAM
     environment: dev
-    managed-by: marina-platform
+    managed-by: eks-platform
 spec:
   kubernetesVersion: "1.31"
   region: us-east-1
@@ -161,7 +161,7 @@ metadata:
 spec:
   tenantName: YOUR-TEAM      # e.g., team-alpha
   bucketSuffix: "YYYYMMDD"   # e.g., 20241028 or your AWS account ID
-  clusterName: CLUSTER-NAME  # e.g., marina-integ-test-eks-cluster
+  clusterName: CLUSTER-NAME  # e.g., eks-integ-test-eks-cluster
   replicas: 2
     limits:
       cpu: "500m"

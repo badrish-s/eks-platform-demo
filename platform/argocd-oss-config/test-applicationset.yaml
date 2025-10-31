@@ -22,7 +22,7 @@ spec:
       project: platform
       
       source:
-        repoURL: git@github.com:badrish-s/marina-platform-demo.git
+        repoURL: git@github.com:badrish-s/eks-platform-demo.git
         targetRevision: HEAD
         path: '{{path}}'
       

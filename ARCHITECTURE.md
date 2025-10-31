@@ -1,8 +1,8 @@
-# Marina Platform Architecture
+# EKS Platform Architecture
 
 ## Overview
 
-Marina Platform is a **minimal, self-service EKS cluster provisioning platform** that enables teams to create EKS Auto Mode clusters by simply committing YAML files to Git.
+EKS Platform is a **minimal, self-service EKS cluster provisioning platform** that enables teams to create EKS Auto Mode clusters by simply committing YAML files to Git.
 
 ## Design Philosophy
 
@@ -64,7 +64,7 @@ Marina Platform is a **minimal, self-service EKS cluster provisioning platform**
 
 **Structure:**
 ```
-marina-platform-demo/
+eks-platform-demo/
 ├── platform/                      # Platform team owns
 │   ├── argocd-config/
 │   │   └── tenant-applications.yaml        # Watches app requests
@@ -322,9 +322,9 @@ spec:
 - Multi-region VPC peering
 - Cluster templates (dev, staging, prod)
 
-## Comparison: Traditional vs Marina Platform
+## Comparison: Traditional vs EKS Platform
 
-| Aspect | Traditional | Marina Platform |
+| Aspect | Traditional | EKS Platform |
 |--------|-------------|-----------------|
 | Cluster Creation | Manual/Terraform | Git commit |
 | Time to Cluster | Hours/Days | 35 minutes |

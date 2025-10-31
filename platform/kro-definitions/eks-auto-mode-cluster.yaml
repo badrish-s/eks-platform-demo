@@ -12,7 +12,7 @@ spec:
   schema:
     apiVersion: v1alpha1
     kind: ClusterRequest
-    group: platform.marina.com
+    group: platform.eks.com
     spec:
       # Required fields
       kubernetesVersion: string

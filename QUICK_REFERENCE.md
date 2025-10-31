@@ -9,7 +9,7 @@ cp tenants/_templates/cluster-request.yaml tenants/YOUR-TEAM/clusters/dev.yaml
 
 ### 2. Edit File
 ```yaml
-apiVersion: platform.marina.com/v1
+apiVersion: platform.eks.com/v1
 kind: ClusterRequest
 metadata:
   name: YOUR-TEAM-dev

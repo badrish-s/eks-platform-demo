@@ -45,7 +45,7 @@ This is the main ResourceGraphDefinition that creates a complete EKS Auto Mode c
 Teams create a simple YAML file:
 
 ```yaml
-apiVersion: platform.marina.com/v1
+apiVersion: platform.eks.com/v1
 kind: ClusterRequest
 metadata:
   name: team-alpha-dev

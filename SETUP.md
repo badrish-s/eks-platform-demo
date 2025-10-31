@@ -1,4 +1,4 @@
-# Marina Platform Demo - Setup Guide
+# EKS Platform Demo - Setup Guide
 
 ## Quick Setup
 
@@ -6,27 +6,27 @@
 
 ```bash
 # Using GitHub CLI
-gh repo create marina-platform-demo \
+gh repo create eks-platform-demo \
   --private \
   --description "Self-service EKS platform with KRO & ACK" \
   --clone
 
-cd marina-platform-demo
+cd eks-platform-demo
 ```
 
 ### Step 2: Copy Files from This Directory
 
 ```bash
 # From your eks-cluster-mgmt directory
-cp -r marina-platform-demo/* ~/workspace/marina-platform-demo/
-cd ~/workspace/marina-platform-demo
+cp -r eks-platform-demo/* ~/workspace/eks-platform-demo/
+cd ~/workspace/eks-platform-demo
 ```
 
 ### Step 3: Verify Repository URLs
 
 All ArgoCD config files are already configured for:
 ```
-https://github.com/badrish-s/marina-platform-demo
+https://github.com/badrish-s/eks-platform-demo
 ```
 
 No changes needed!
@@ -44,7 +44,7 @@ git push origin main
 ### Directory Structure
 
 ```
-marina-platform-demo/
+eks-platform-demo/
 ├── README.md                          # Platform overview
 ├── .gitignore                         # Git ignore rules
 ├── SETUP.md                           # This file
@@ -103,7 +103,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 argocd login <argocd-url> --username admin
 
 # Add repository
-argocd repo add https://github.com/YOUR-USERNAME/marina-platform-demo.git \
+argocd repo add https://github.com/YOUR-USERNAME/eks-platform-demo.git \
   --username YOUR-USERNAME \
   --password YOUR-GITHUB-TOKEN
 ```
@@ -219,7 +219,7 @@ git push
 Questions? Contact:
 - **Slack**: #platform-engineering
 - **Email**: platform-team@company.com
-- **GitHub Issues**: https://github.com/YOUR-USERNAME/marina-platform-demo/issues
+- **GitHub Issues**: https://github.com/YOUR-USERNAME/eks-platform-demo/issues
 
 ## What You Get
 
